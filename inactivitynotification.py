@@ -46,7 +46,6 @@ import time
 import datetime
 import locale
 import codecs
-import re
 
 class MonitoredFile(object):
 
@@ -148,15 +147,15 @@ def parse_timespec(tspec):
     """
     try:
         tm = 0
-        for gr in re.split("([0-9]+[dhms])", tspec):
-            gr = gr.strip()
-            if gr == "":
-                continue
-            elif len(gr) < 2:
-                raise ValueError
-            num, unit = gr[0:-1], gr[-1]
-            mult = { 's': 1, 'm': 60, 'h':60*60, 'd': 24*60*60 }
-            tm = tm + int(num) * mult[unit]
+        units = { 's': 1, 'm': 60, 'h':60*60, 'd': 24*60*60 }
+        last = 0
+        used = [ ]
+        for i in range(0, len(tspec)):
+            if tspec[i] in used: raise ValueError
+            if tspec[i] in units:
+                tm = tm + int(tspec[last:i]) * units[tspec[i]]
+                last = i+1
+                used.append(tspec[i]) # No duplicated units!
         return tm
     except:
         stderr.write("Bad time format. Use '1d2h3m4s' for 1 day, "
