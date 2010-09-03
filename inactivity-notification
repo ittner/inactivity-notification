@@ -15,11 +15,10 @@ The following commands are accecpted:
   stop
     Stops any running instance.
 
-  timer <minutes>
-    Sets the verification/notification interval to the given number of
-    minutes.
+  timer [timespec]
+    Shows or sets the verification/notification interval.
 
-  add <file> <timeout> <short message> [<long message> [icon]]
+  add <file> <timespec> <short message> [<long message> [icon]]
     Adds a file to the verification queue.
   
   remove <file> [...]
@@ -83,6 +82,7 @@ class Monitor(dbus.service.Object):
     def __init__(self, mainloop):
         self.mainloop = mainloop
         self.timer = None
+        self.timer_interval = -1
         self.files = [ ]
         sbus = dbus.SessionBus()
         mbus = dbus.service.BusName(MONITOR_BUS, bus=sbus)
@@ -124,7 +124,12 @@ class Monitor(dbus.service.Object):
         if self.timer:
             gobject.source_remove(self.timer)
         self.timer = gobject.timeout_add_seconds(seconds, self._process)
+        self.timer_interval = seconds
         return True
+
+    @dbus.service.method(MONITOR_INTERFACE, out_signature="i")
+    def get_timer(self):
+        return self.timer_interval
 
     def _process(self):
         for f in self.files:
@@ -207,6 +212,10 @@ def interpret(args):
         return ret_ok
 
     if command == "timer":
+        if len(args) == 0:
+            stdout.write("Polling interval is %ds, use 'timer <timespec>' to"
+                " change.\n" % (obj.get_timer()))
+            return ret_ok
         if len(args) != 1:
             usage()
             return ret_error
