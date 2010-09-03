@@ -1,32 +1,61 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-USAGE = u"""
+LICENSE = u"""\
+inactivity-notification - Warns about non-updated files
+(c) 2010 Alexandre Erwin Ittner <alexandre@ittner.com.br>
+New versions and updates in http://www.ittner.com.br/
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+MA 02111-1307, USA.
+
+"""
+
+USAGE = u"""\
 This program monitor files which are expected to be updated at periodic
 intervals and emits desktop notifications when they become outdated.
 
-The following commands are accecpted:
+The following commands are accepted:
 
   start
     Starts the server process. The program will not return until finished.
     If there is another server process running for the current user, just
     prints an error and exits.
-  
+
   stop
     Stops any running instance.
 
   timer [timespec]
     Shows or sets the verification/notification interval.
 
-  add <file> <timespec> <short message> [<long message> [icon]]
-    Adds a file to the verification queue.
-  
+  add <file> <timespec> <short message> [<long message> [icon file]]
+    Adds a file to the verification queue. The verification cycle will send
+    a notification if the file is not updated for longer than 'timespec'.
+
   remove <file> [...]
     Remove the given file from the verification queue.
-    
+
   list
     List the currently monitored files.
 
+  license
+    Shows the license (for short: it is GPLv2+, WITHOUT ANY WARRANTY, etc.)
+
+'timespecs' are time intervals (not dates nor absolute times) given in the
+format '1d2h3m42s' for 1 day, 2 hours, 3 minutes and 42 seconds. At least
+one field must be informed and no field may be repeated.
 
 """
 
@@ -70,7 +99,8 @@ class MonitoredFile(object):
             summary = "Failed to verify " + self.path
             message = "There was an error in the verification process"
         sbus = dbus.SessionBus()
-        notify_bus = sbus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
+        notify_bus = sbus.get_object("org.freedesktop.Notifications",
+            "/org/freedesktop/Notifications")
         notify = dbus.Interface(notify_bus, "org.freedesktop.Notifications")
         self._msg_id = notify.Notify(MONITOR_BUS, self._msg_id, self.icon,
             summary, message, [], {}, -1)
@@ -201,7 +231,7 @@ def interpret(args):
                 "Is DBus available?\n")
         return ret_error
 
-    if not command in [ "stop", "add", "remove", "list", "timer" ]:
+    if not command in [ "stop", "add", "remove", "list", "timer", "license" ]:
         usage()
         return ret_error
 
@@ -301,7 +331,9 @@ def interpret(args):
             icon = ""
         obj.add_file(fullname, tm, summary, message, icon)
 
-
+    if command == "license":
+        stdout.write(LICENSE)
+        return ret_ok
 
 
 if __name__ == '__main__':
