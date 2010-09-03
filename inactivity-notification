@@ -59,9 +59,9 @@ one field must be informed and no field may be repeated.
 
 """
 
-MONITOR_BUS = "br.com.ittner.FileMonitor"
-MONITOR_OBJECT = "/br/com/ittner/FileMonitor"
-MONITOR_INTERFACE = "br.com.ittner.FileMonitor"
+MONITOR_BUS = "br.com.ittner.InactivityNotification"
+MONITOR_OBJECT = "/br/com/ittner/InactivityNotification"
+MONITOR_INTERFACE = "br.com.ittner.InactivityNotification"
 
 
 import sys
