@@ -63,7 +63,9 @@ class MonitoredFile(object):
             if tdiff < self.timeout:
                 return False
             summary = self.summary
-            message = time.strftime(self.message, time.localtime(mtime))
+            # HACK: 'strftime' fails with unicode strings. Python bites too.
+            message = time.strftime(self.message.encode("utf-8"), 
+                time.localtime(mtime)).decode("utf-8")
         except:
             summary = "Failed to verify " + self.path
             message = "There was an error in the verification process"
