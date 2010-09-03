@@ -46,6 +46,7 @@ import time
 import datetime
 import locale
 import codecs
+import re
 
 class MonitoredFile(object):
 
@@ -142,15 +143,38 @@ def find_server():
     except: pass
     return None
 
+def parse_timespec(tspec):
+    """Format: 1d2h3m4s : 1 day, 2 hours, 3 minutes, 4 seconds --> seconds
+    """
+    try:
+        tm = 0
+        for gr in re.split("([0-9]+[dhms])", tspec):
+            gr = gr.strip()
+            if gr == "":
+                continue
+            elif len(gr) < 2:
+                raise ValueError
+            num, unit = gr[0:-1], gr[-1]
+            mult = { 's': 1, 'm': 60, 'h':60*60, 'd': 24*60*60 }
+            tm = tm + int(num) * mult[unit]
+        return tm
+    except:
+        stderr.write("Bad time format. Use '1d2h3m4s' for 1 day, "
+            "2 hours, 3 minutes and 4 seconds. At least one field "
+            "must be informed.\n")
+        return -1   # Error
 
 def usage():
     stderr.write(USAGE)
 
 
 def interpret(args):
+    ret_error = 1
+    ret_ok = 0
+
     if len(args) < 2:
         usage()
-        return
+        return ret_error
 
     del args[0]
     command = args[0]
@@ -161,61 +185,99 @@ def interpret(args):
         srv = Monitor(loop)
         if srv.try_register():
             loop.run()
+            return ret_ok
+        elif find_server():
+            stderr.write("The verification server is already running.\n")
         else:
-            stdout.write("Failed to get ownership of the bus. Already running?\n")
-        return
+            stderr.write("Failed to get ownership of the bus."
+                "Is DBus available?\n")
+        return ret_error
 
     if not command in [ "stop", "add", "remove", "list", "timer" ]:
         usage()
-        return
+        return ret_error
 
     obj = find_server()
     if not obj:
-        stdout.write("Server not found\n")
-        return
+        stderr.write("The verification server is not running. Call the "
+            "'start' command to enable it first.\n")
+        return ret_error
 
     if command == "stop":
         obj.stop_server()
-        return
+        return ret_ok
 
     if command == "timer":
-        if len(args) == 0:
-            stdout.write("How many seconds?\n")
-            return
-        try:
-            obj.set_timer(int(args[0]))
-        except:
-            stdout.write("Bad number\n")
-        return
+        if len(args) != 1:
+            usage()
+            return ret_error
+        tm = parse_timespec(args[0])
+        if tm < 0:
+            return ret_error
+        if tm == 0:
+            stderr.write("Interval must be an greater than zero.\n")
+            return ret_error
+        if obj.set_timer(tm):
+            return ret_ok
+        return ret_error
 
     if command == "remove":
         if len(args) == 0:
-            stdout.write("No file to remove\n")
-            return
+            stderr.write("No file to remove.\n")
+            return ret_error
         for fname in args:
             fname = os.path.realpath(fname)
             obj.remove_file(fname)
-        return
+        return ret_ok
 
     if command == "list":
-        for mf in obj.list_files():
-            stdout.write(mf[0] + '\t' + str(mf[1]) + '\t' + mf[2] + '\t' + mf[3] + '\t' + mf[4] + "\n")
+        files = obj.list_files()
+        if files == None:
+            stderr.write("Failed to get the list of monitored files.\n")
+            return ret_error
+        if len(files) == 0:
+            stderr.write("There is no monitored files. Use the 'add' "
+                " command to add some files.\n")
+            return ret_ok
+
+        # TODO: Move this to a 'print_table' function
+        headers = ("Filename", "Timeout", "Summary", "Long message", "Icon")
+        widths = [ len(s) for s in headers ]
+        toprint = [ headers ]
+        for mf in files:
+            if len(mf) != len(widths):
+                stderr.write("Unexpected message format.\n")
+                return ret_error
+            row = [ unicode(i) for i in mf ]
+            for i in xrange(0, len(row)):
+                widths[i] = max(widths[i], len(row[i]))
+            toprint.append(row)
+        for row in toprint:
+            icon = row[4]
+            if icon == "": icon = "None"
+            stdout.write("".join([
+                row[0].ljust(widths[0]),  " | ",
+                row[1].center(widths[1]), " | ",
+                row[2].ljust(widths[2]),  " | ",
+                row[3].ljust(widths[3]),  " | ",
+                icon.ljust(widths[4]),    "\n"]))
+        return ret_ok
 
     if command == "add":
         if len(args) < 3 or len(args) > 5:
             usage()
-            return
-
+            return ret_error
         fname = args[0]
         fullname = os.path.realpath(fname)
         if not os.path.exists(fullname):
-            stdout.write("File not found\n")
-            return
-        try:
-            timeout = int(args[1])
-        except:
-            stdout.write("Timeout must be a number of seconds. (sei, deveria ser horas...)\n")
-            return
+            stdout.write("File '" + fullname + "' not found.\n")
+            return ret_error
+        tm = parse_timespec(args[1])
+        if tm < 0:
+            return ret_error
+        if tm == 0:
+            stderr.write("Interval must be an greater than zero.\n")
+            return ret_error
         summary = args[2]
         if len(args) > 3:
             message = args[3]
@@ -225,13 +287,13 @@ def interpret(args):
             icon = args[4]
         else:
             icon = ""
-        obj.add_file(fullname, timeout, summary, message, icon)
+        obj.add_file(fullname, tm, summary, message, icon)
 
 
 
 
 if __name__ == '__main__':
-    enc = "utf-8"       # use Unicode or die, baby
+    enc = "utf-8"       # use Unicode or die, baby.
     stdout = codecs.getwriter(enc)(sys.stdout)
     stderr = codecs.getwriter(enc)(sys.stderr)
     fixed_argv = [ s.decode(enc) for s in sys.argv ]
