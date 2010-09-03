@@ -48,7 +48,7 @@ import codecs
 
 class MonitoredFile(object):
 
-    def __init__(self, path, timeout, summary, message, icon):
+    def __init__(self, path, timeout, summary, message="", icon=""):
         self.path = path
         self.timeout = timeout
         self.summary = summary
