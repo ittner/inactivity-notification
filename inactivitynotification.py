@@ -260,7 +260,7 @@ def interpret(args):
                 row[1].center(widths[1]), " | ",
                 row[2].ljust(widths[2]),  " | ",
                 row[3].ljust(widths[3]),  " | ",
-                icon.ljust(widths[4]),    "\n"]))
+                icon, "\n"]))
         return ret_ok
 
     if command == "add":
