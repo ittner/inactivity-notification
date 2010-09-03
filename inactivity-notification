@@ -54,6 +54,7 @@ class MonitoredFile(object):
         self.summary = summary
         self.message = message
         self.icon = icon
+        self._msg_id = 0    # Notification message id
 
     def check_update(self):
         try:
@@ -69,7 +70,8 @@ class MonitoredFile(object):
         sbus = dbus.SessionBus()
         notify_bus = sbus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
         notify = dbus.Interface(notify_bus, "org.freedesktop.Notifications")
-        notify.Notify(MONITOR_BUS, 0, self.icon, summary, message, [], {}, 9000)
+        self._msg_id = notify.Notify(MONITOR_BUS, self._msg_id, self.icon,
+            summary, message, [], {}, 9000)
         return True
 
     def to_tuple(self):
