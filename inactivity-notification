@@ -76,6 +76,7 @@ import locale
 import codecs
 import xdg.BaseDirectory as basedir
 import json
+import math
 
 class MonitoredFile(object):
 
@@ -250,6 +251,21 @@ def parse_timespec(tspec):
             "must be informed.\n")
         return -1   # Error
 
+def generate_timespec(seconds):
+    """Generate a timespec tring form the given number of seconds."""
+    seq = [ ('d', 24*60*60), ('h', 60*60), ('m', 60), ('s', 1) ]
+    parts = [ ]
+    for p in seq:
+        if seconds < 1:
+            break
+        v = math.floor(seconds/p[1])
+        seconds = seconds - v*p[1]
+        if v > 0:
+            parts.append("%d%s" % (v, p[0]))
+    if len(seq) == 1:
+        return "%ds" % (seconds)
+    return "".join(parts)
+
 def usage():
     stderr.write(USAGE)
 
@@ -295,8 +311,8 @@ def interpret(args):
 
     if command == "timer":
         if len(args) == 0:
-            stdout.write("Polling interval is %ds, use 'timer <timespec>' to"
-                " change.\n" % (obj.get_timer()))
+            stdout.write("Polling interval is %s, use 'timer <timespec>' to"
+                " change.\n" % (generate_timespec(obj.get_timer())))
             return ret_ok
         if len(args) != 1:
             usage()
@@ -340,7 +356,8 @@ def interpret(args):
             if len(mf) != len(widths):
                 stderr.write("Unexpected message format.\n")
                 return ret_error
-            row = [ unicode(i) for i in mf ]
+            row = [ unicode(mf[0]), generate_timespec(mf[1]), unicode(mf[2]),
+                    unicode(mf[3]), unicode(mf[4]) ]
             for i in xrange(0, len(row)):
                 widths[i] = max(widths[i], len(row[i]))
             toprint.append(row)
