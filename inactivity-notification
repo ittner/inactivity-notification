@@ -74,6 +74,8 @@ import time
 import datetime
 import locale
 import codecs
+import xdg.BaseDirectory as basedir
+import json
 
 class MonitoredFile(object):
 
@@ -112,6 +114,7 @@ class MonitoredFile(object):
 
 
 class Monitor(dbus.service.Object):
+    _CFG_FILE = "inactivity-notification/state.json"
 
     def __init__(self, mainloop):
         self.mainloop = mainloop
@@ -121,6 +124,7 @@ class Monitor(dbus.service.Object):
         sbus = dbus.SessionBus()
         mbus = dbus.service.BusName(MONITOR_BUS, bus=sbus)
         self.set_timer(15*60)
+        self.load_config()
         dbus.service.Object.__init__(self, mbus, MONITOR_OBJECT)
 
     def try_register(self):
@@ -131,6 +135,7 @@ class Monitor(dbus.service.Object):
 
     @dbus.service.method(MONITOR_INTERFACE)
     def stop_server(self):
+        self.save_config()
         self.mainloop.quit()
 
     @dbus.service.method(MONITOR_INTERFACE, in_signature="sisvv")
@@ -164,6 +169,49 @@ class Monitor(dbus.service.Object):
     @dbus.service.method(MONITOR_INTERFACE, out_signature="i")
     def get_timer(self):
         return self.timer_interval
+
+    @dbus.service.method(MONITOR_INTERFACE, out_signature="bs")
+    def get_default_config_file(self):
+        dirs = basedir.xdg_config_dirs
+        if len(dirs) < 1:
+            return False, ""
+        return True, os.path.join(dirs[0], Monitor._CFG_FILE)
+
+    @dbus.service.method(MONITOR_INTERFACE, out_signature="b")
+    def save_config(self):
+        ok, path = self.get_default_config_file()
+        if not ok:
+            return False
+        ddir = os.path.split(path)[0]
+        if not os.path.exists(ddir):
+            os.makedirs(ddir, 0700)
+        try:
+            fp = open(path, "w")
+            cfg = ({ "timer": self.get_timer() }, self.list_files())
+            fp.write(json.dumps(cfg))
+            fp.write("\n")
+            fp.close()
+            return True
+        except: pass
+        return False
+
+    @dbus.service.method(MONITOR_INTERFACE, out_signature="b")
+    def load_config(self):
+        ok, path = self.get_default_config_file()
+        if not ok:
+            return False
+        try:
+            fp = open(path, "r")
+            cfg = json.loads(fp.read())
+            fp.close()
+            props = cfg[0]
+            self.set_timer(props['timer'])
+            self.files = [ ]
+            for mf in cfg[1]:
+                self.add_file(mf[0], mf[1], mf[2], mf[3], mf[4])
+            return True
+        except: pass
+        return False
 
     def _process(self):
         for f in self.files:
@@ -260,6 +308,7 @@ def interpret(args):
             stderr.write("Interval must be an greater than zero.\n")
             return ret_error
         if obj.set_timer(tm):
+            obj.save_config()
             return ret_ok
         return ret_error
 
@@ -270,6 +319,7 @@ def interpret(args):
         for fname in args:
             fname = os.path.realpath(fname)
             obj.remove_file(fname)
+        obj.save_config()
         return ret_ok
 
     if command == "list":
@@ -330,6 +380,7 @@ def interpret(args):
         else:
             icon = ""
         obj.add_file(fullname, tm, summary, message, icon)
+        obj.save_config()
 
     if command == "license":
         stdout.write(LICENSE)
