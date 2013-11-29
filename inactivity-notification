@@ -78,6 +78,16 @@ import xdg.BaseDirectory as basedir
 import json
 import math
 
+
+def _notify(msg_id, icon, summary, message):
+    sbus = dbus.SessionBus()
+    notify_bus = sbus.get_object("org.freedesktop.Notifications",
+        "/org/freedesktop/Notifications")
+    notify = dbus.Interface(notify_bus, "org.freedesktop.Notifications")
+    return notify.Notify("Inactivity notification", msg_id, icon, summary,
+        message, [], {}, -1)
+
+
 class MonitoredFile(object):
 
     def __init__(self, path, timeout, summary, message="", icon=""):
@@ -101,12 +111,7 @@ class MonitoredFile(object):
         except:
             summary = "Failed to verify " + self.path
             message = "There was an error in the verification process"
-        sbus = dbus.SessionBus()
-        notify_bus = sbus.get_object("org.freedesktop.Notifications",
-            "/org/freedesktop/Notifications")
-        notify = dbus.Interface(notify_bus, "org.freedesktop.Notifications")
-        self._msg_id = notify.Notify("Inactivity notification",
-            self._msg_id, self.icon, summary, message, [], {}, -1)
+        self._msg_id = _notify(self._msg_id, self.icon, summary, message)
         return True
 
     def to_tuple(self):
