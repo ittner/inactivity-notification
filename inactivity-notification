@@ -79,13 +79,21 @@ import json
 import math
 
 
-def _notify(msg_id, icon, summary, message):
+def _get_notify():
     sbus = dbus.SessionBus()
     notify_bus = sbus.get_object("org.freedesktop.Notifications",
         "/org/freedesktop/Notifications")
-    notify = dbus.Interface(notify_bus, "org.freedesktop.Notifications")
+    return dbus.Interface(notify_bus, "org.freedesktop.Notifications")
+
+def _notify(msg_id, icon, summary, message):
+    notify = _get_notify()
     return notify.Notify("Inactivity notification", msg_id, icon, summary,
         message, [], {}, -1)
+
+def _close_notification(msg_id):
+    notify = _get_notify()
+    return notify.CloseNotification(msg_id)
+
 
 
 class MonitoredFile(object):
@@ -103,6 +111,7 @@ class MonitoredFile(object):
             mtime = os.stat(self.path).st_mtime
             tdiff = time.time() - mtime
             if tdiff < self.timeout:
+                _close_notification(self._msg_id)
                 return False
             # HACK: 'strftime' fails with unicode strings. Python bites too.
             lt = time.localtime(mtime)
