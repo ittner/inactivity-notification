@@ -111,7 +111,9 @@ class MonitoredFile(object):
             mtime = os.stat(self.path).st_mtime
             tdiff = time.time() - mtime
             if tdiff < self.timeout:
-                _close_notification(self._msg_id)
+                if self._msg_id > 0:
+                    _close_notification(self._msg_id)
+                    self._msg_id = 0
                 return False
             # HACK: 'strftime' fails with unicode strings. Python bites too.
             lt = time.localtime(mtime)
