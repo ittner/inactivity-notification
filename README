@@ -1,0 +1,45 @@
+inactivity-notification - Warns about non-updated files
+(c) 2010 Alexandre Erwin Ittner <alexandre@ittner.com.br>
+New versions and updates in http://www.ittner.com.br/
+
+
+This program monitor files which are expected to be updated at periodic
+intervals and emits desktop notifications when they become outdated.
+
+The following commands are accepted:
+
+  start
+    Starts the server process. The program will not return until finished.
+    If there is another server process running for the current user, just
+    prints an error and exits.
+
+  stop
+    Stops any running instance.
+
+  timer [timespec]
+    Shows or sets the verification/notification interval.
+
+  add <file> <timespec> <short message> [<long message> [icon file]]
+    Adds a file to the verification queue. The verification cycle will send
+    a notification if the file is not updated for longer than 'timespec'.
+
+  remove <file> [...]
+    Remove the given file from the verification queue.
+
+  list
+    List the currently monitored files.
+
+  license
+    Shows the license (for short: it is GPLv2+, WITHOUT ANY WARRANTY, etc.)
+
+'timespecs' are time intervals (not dates nor absolute times) given in the
+format '1d2h3m42s' for 1 day, 2 hours, 3 minutes and 42 seconds. At least
+one field must be informed and no field may be repeated.
+
+
+
+Dependencies:
+  - Python 2.7
+  - PyGTK
+  - python-dbus
+  - python-xdg
